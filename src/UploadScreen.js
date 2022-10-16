@@ -1,10 +1,30 @@
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert, Image } from 'react-native'
-import React, {useState} from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert, Image, Button } from 'react-native'
+import { useEffect, useRef, useState } from 'react';
+import { Camera } from 'expo-camera';
+import { shareAsync } from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker'
 import {firebase} from '../config'
 
 const UploadScreen = () => {
-const [image, setImage] = useState(null);
+
+//Launching camera
+let cameraRef = useRef();
+  const [hasCameraPermission, setHasCameraPermission] = useState();
+  const [hasMediaLibraryPermission, setHasMediaLibraryPermission] = useState();
+  const [photo, setPhoto] = useState();
+
+  useEffect(() => {
+    (async () => {
+      const cameraPermission = await Camera.requestCameraPermissionsAsync();
+      const imagePickerPermission = await ImagePicker.requestMediaLibraryPermissionsAsync(); //upload
+      const mediaLibraryPermission = await MediaLibrary.requestPermissionsAsync();
+      setHasCameraPermission(cameraPermission.status === "granted");
+      setHasMediaLibraryPermission(mediaLibraryPermission.status === "granted");
+    })();
+  }, []);
+
+  const [image, setImage] = useState(null);
 const [uploading, setUploading] = useState(false);
 
 const pickImage = async()=>{
@@ -41,8 +61,55 @@ const uploadImage = async () => {
     setImage(null)
 }
 
+
+  if (hasCameraPermission === undefined) {
+    return <Text>Requesting permissions...</Text>
+  } else if (!hasCameraPermission) {
+    return <Text>Permission for camera not granted. Please change this in settings.</Text>
+  }
+
+  let takePic = async () => {
+    let options = {
+      quality: 1,
+      base64: true,
+      exif: false
+    };
+
+    let newPhoto = await cameraRef.current.takePictureAsync(options);
+    setPhoto(newPhoto);
+  };
+
+  if (photo) {
+    let sharePic = () => {
+      shareAsync(photo.uri).then(() => {
+        setPhoto(undefined);
+      });
+    };
+
+    let savePhoto = () => {
+      MediaLibrary.saveToLibraryAsync(photo.uri).then(() => {
+        setPhoto(undefined);
+      });
+    };
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <Image style={styles.preview} source={{ uri: "data:image/jpg;base64," + photo.base64 }} />
+        <Button title="Share" onPress={sharePic} />
+        {hasMediaLibraryPermission ? <Button title="Save" onPress={savePhoto} /> : undefined}
+        <Button title="Discard" onPress={() => setPhoto(undefined)} />
+      </SafeAreaView>
+    );
+  }
+//upload image
+
   return (
     <SafeAreaView style={styles.container}>
+         <Camera ref={cameraRef}>
+            <TouchableOpacity title="Take Pic" onPress={takePic} style={styles.takePicButton} >
+                <Text style={styles.buttonText}>Take Picture</Text>
+           </TouchableOpacity>
+        </Camera>
         <TouchableOpacity style={styles.selectButton} onPress={pickImage}>
             <Text style={styles.buttonText}>Pick an Image</Text>
         </TouchableOpacity>
@@ -67,6 +134,19 @@ const styles = StyleSheet.create({
         flex:1,
         alignItems:'center',
         backgroundColor:'#000',
+        justifyContent:'center'
+    },
+    cameraContainer:{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+    takePicButton:{
+        borderRadius:5,
+        width:150,
+        height:50,
+        backgroundColor:'red',
+        alignItems:'center',
         justifyContent:'center'
     },
     selectButton:{
