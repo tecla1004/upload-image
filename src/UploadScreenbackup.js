@@ -14,7 +14,6 @@ import { shareAsync } from "expo-sharing";
 import * as MediaLibrary from "expo-media-library";
 import * as ImagePicker from "expo-image-picker";
 import { firebase } from "../config";
-import { manipulateAsync } from "expo-image-manipulator";
 
 const UploadScreen = () => {
   //Launching camera
@@ -57,7 +56,6 @@ const UploadScreen = () => {
     const response = await fetch(image.uri);
     const blob = await response.blob();
     const filename = image.uri.substring(image.uri.lastIndexOf("/") + 1);
-
     //upload to firebase
     const ref = firebase.storage().ref().child(filename);
     const task = ref.put(blob);
@@ -86,6 +84,9 @@ const UploadScreen = () => {
       }
     );
 
+    //get the image download url from firebase storage
+    // const url = await ref.getDownloadURL();
+    // console.log(url);
 
     // var ref = firebase.storage().ref().child(filename).put(blob);
 
